@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Office AI Suite - Translate & Style</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            --secondary-gradient: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+            --glass-bg: rgba(15, 23, 42, 0.85);
+            --accent: #22d3ee;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        body {
+            background: #020617;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.1) 0, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.1) 0, transparent 50%);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 32px;
+            padding: 40px;
+            width: 100%;
+            max-width: 650px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        /* Mode Switcher */
+        .mode-switcher {
+            display: flex;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            border: 1px solid #1e293b;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .mode-btn.active {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .mode-btn.active.ai {
+            color: #a855f7;
+        }
+
+        .mode-btn.active.style {
+            color: #38bdf8;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--accent);
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            border: 1px solid rgba(34, 211, 238, 0.2);
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin-bottom: 5px;
+            letter-spacing: -0.02em;
+        }
+
+        .ai-title {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .style-title {
+            background: var(--secondary-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+            transition: all 0.3s ease;
+        }
+
+        .form-group.hidden {
+            display: none;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .drop-zone {
+            display: block;
+            width: 100%;
+            background: rgba(15, 23, 42, 0.4);
+            border: 2px dashed #334155;
+            border-radius: 20px;
+            padding: 35px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .drop-zone:hover,
+        .drop-zone.drag-over {
+            border-color: var(--accent);
+            background: rgba(34, 211, 238, 0.05);
+        }
+
+        .drop-zone-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            pointer-events: none;
+        }
+
+        .upload-icon {
+            width: 44px;
+            height: 44px;
+            color: #475569;
+            transition: all 0.3s ease;
+        }
+
+        .drop-zone:hover .upload-icon {
+            color: var(--accent);
+            transform: translateY(-5px);
+        }
+
+        select,
+        textarea {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            color: white;
+            padding: 12px 16px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        select:focus,
+        textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.1);
+        }
+
+        .btn-main {
+            width: 100%;
+            padding: 18px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 16px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-main.ai {
+            background: var(--primary-gradient);
+        }
+
+        .btn-main.style {
+            background: var(--secondary-gradient);
+        }
+
+        .btn-main:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-main:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #status {
+            margin-top: 25px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            min-height: 120px;
+            max-height: 200px;
+            overflow-y: auto;
+            color: #cbd5e1;
+            border-left: 3px solid var(--accent);
+            white-space: pre-wrap;
+            text-align: left;
+            line-height: 1.6;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 6px;
+            background: #1e293b;
+            border-radius: 3px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--accent);
+            transition: width 0.4s ease;
+        }
+
+        .footer {
+            margin-top: 25px;
+            font-size: 0.75rem;
+            color: #475569;
+        }
+
+        /* Image Review Section */
+        #imageReviewSection {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.4);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            text-align: left;
+            display: none;
+        }
+
+        #imageReviewSection h3 {
+            font-size: 1rem;
+            margin-bottom: 15px;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .slide-group {
+            margin-bottom: 25px;
+        }
+
+        .slide-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+        }
+
+        .image-card {
+            position: relative;
+            background: #0f172a;
+            border-radius: 12px;
+            overflow: hidden;
+            aspect-ratio: 16 / 10;
+            cursor: default;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .image-card:hover {
+            border-color: rgba(34, 211, 238, 0.3);
+        }
+
+        .image-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #111827;
+        }
+
+        .image-card .checkbox-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 6px;
+            padding: 4px;
+            line-height: 0;
+            z-index: 2;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .image-card input[type="checkbox"] {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            accent-color: #ef4444;
+        }
+
+        .image-card.selected {
+            border-color: #ef4444;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+        }
+
+        /* Modal / Overlay Removal */
+        #imageOverlay {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="mode-switcher">
+            <button class="mode-btn active ai" id="modeAi">AI Translation & Style</button>
+            <button class="mode-btn style" id="modeStyle">Style Only (Fast)</button>
+        </div>
+
+        <div class="badge" id="appBadge">Office AI Suite v2.5</div>
+        <h1 id="appTitle" class="ai-title">Office Translator</h1>
+        <p class="subtitle" id="appSubtitle">AI 번역과 메이리오 폰트 수정을 한 번에 해결합니다.</p>
+
+        <div class="form-group">
+            <label>1. 문서 파일 선택 (.pptx, .docx)</label>
+            <label for="fileInput" class="drop-zone" id="dropZone">
+                <div class="drop-zone-content">
+                    <svg class="upload-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M12 16V8M12 8L9 11M12 8L15 11M7.8 20H16.2C17.8802 20 18.7202 20 19.362 19.673C19.9265 19.3854 20.3854 18.9265 20.673 18.362C21 17.7202 21 16.8802 21 15.2V8.8C21 7.11984 21 6.27976 20.673 5.63803C20.3854 5.07354 19.9265 4.6146 19.362 4.32698C18.7202 4 17.8802 4 16.2 4H7.8C6.11984 4 5.27976 4 4.63803 4.32698C4.07354 4.6146 3.6146 5.07354 3.32698 5.63803C3 6.27976 3 7.11984 3 8.8V15.2C3 16.8802 3 17.7202 3.32698 18.362C3.6146 18.9265 4.07354 19.3854 4.63803 19.673C5.27976 20 6.11984 20 7.8 20Z"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <p id="fileNameDisplay"><b>클릭하여 파일 선택</b> 또는 여기에 드래그</p>
+                </div>
+                <input type="file" id="fileInput" accept=".pptx,.docx" style="display: none;">
+            </label>
+        </div>
+
+        <!-- AI Only Options -->
+        <div id="aiOptions">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="form-group">
+                    <label for="direction">2. 번역 방향</label>
+                    <select id="direction">
+                        <option value="ko-ja">한국어 → 일본어</option>
+                        <option value="ja-ko">일본어 → 한국어</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="apiKey">3. Gemini API Key(s)</label>
+                    <textarea id="apiKey" rows="1" style="resize: none;" placeholder="키를 입력하거나 파일을 로드하세요"></textarea>
+                    <div style="margin-top: 8px;">
+                        <input type="file" id="apiKeyFile" accept=".txt" style="display: none;">
+                        <button type="button" onclick="document.getElementById('apiKeyFile').click()"
+                            style="font-size: 0.7rem; background: #334155; color: #cbd5e1; border: none; padding: 4px 10px; border-radius: 6px; cursor: pointer;">
+                            Load API.txt manually
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Image Review Section (Added) -->
+        <div id="imageReviewSection">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+                교체가 필요한 이미지 선택 (번역 시 자동 표시)
+            </h3>
+            <div id="imageReviewGrid"></div>
+        </div>
+
+        <button id="mainBtn" class="btn-main ai">작업 시작 및 다운로드</button>
+
+        <div class="progress-bar-container">
+            <div id="progressBar" class="progress-bar"></div>
+        </div>
+        <div id="status">파일을 선택하고 준비해주세요.</div>
+
+        <div class="footer">
+            Powered by JSZip & Google Gemini API • 100% Secure • Optimized Compression
+        </div>
+    </div>
+
+    <!-- Modal for Preview (Removed) -->
+    <div id="imageOverlay" style="display:none;"></div>
+
+    <script>
+        let currentMode = 'ai'; // 'ai' or 'style'
+
+        const CONFIG = {
+            pptx: {
+                getFiles: (zip) => Object.keys(zip.files).filter(n => n.startsWith("ppt/slides/slide") && n.endsWith(".xml")),
+                ns: "http://schemas.openxmlformats.org/drawingml/2006/main",
+                pTag: "p", tTag: "t", rPrTag: "rPr",
+                fontTags: ["latin", "ea", "cs"], isWord: false
+            },
+            docx: {
+                getFiles: (zip) => Object.keys(zip.files).filter(n => n === "word/document.xml" || n.startsWith("word/header") || n.startsWith("word/footer")),
+                ns: "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                pTag: "p", tTag: "t", rPrTag: "rPr",
+                fontTags: ["ascii", "hAnsi", "eastAsia", "cs"], isWord: true
+            }
+        };
+
+        const ui = {
+            modeAi: document.getElementById('modeAi'),
+            modeStyle: document.getElementById('modeStyle'),
+            appTitle: document.getElementById('appTitle'),
+            appSubtitle: document.getElementById('appSubtitle'),
+            aiOptions: document.getElementById('aiOptions'),
+            mainBtn: document.getElementById('mainBtn'),
+            fileInput: document.getElementById('fileInput'),
+            dropZone: document.getElementById('dropZone'),
+            fileNameDisplay: document.getElementById('fileNameDisplay'),
+            status: document.getElementById('status'),
+            progressBar: document.getElementById('progressBar'),
+            direction: document.getElementById('direction'),
+            apiKey: document.getElementById('apiKey'),
+            apiKeyFile: document.getElementById('apiKeyFile'),
+            imageReviewSection: document.getElementById('imageReviewSection'),
+            imageReviewGrid: document.getElementById('imageReviewGrid')
+        };
+
+        let selectedImages = {}; // slideNum -> { rId/path: true }
+
+        // Mode Switching Logic
+        ui.modeAi.addEventListener('click', () => setMode('ai'));
+        ui.modeStyle.addEventListener('click', () => setMode('style'));
+
+        function setMode(mode) {
+            currentMode = mode;
+            if (mode === 'ai') {
+                ui.modeAi.classList.add('active');
+                ui.modeStyle.classList.remove('active');
+                ui.aiOptions.classList.remove('hidden');
+                ui.appTitle.textContent = "Office Translator";
+                ui.appTitle.className = "ai-title";
+                ui.appSubtitle.innerHTML = "AI 번역과 메이리오 폰트 수정을 한 번에 해결합니다.";
+                ui.mainBtn.className = "btn-main ai";
+                log("AI 번역 모드로 전환되었습니다.");
+            } else {
+                ui.modeStyle.classList.add('active');
+                ui.modeAi.classList.remove('active');
+                ui.aiOptions.classList.add('hidden');
+                ui.appTitle.textContent = "Font Stylist";
+                ui.appTitle.className = "style-title";
+                ui.appSubtitle.innerHTML = "문서의 모든 폰트를 <b>Meiryo</b>로 즉시 통합합니다.";
+                ui.mainBtn.className = "btn-main style";
+                log("폰트 스타일러 모드로 전환되었습니다. (API 불필요)");
+            }
+        }
+
+        // Drag & Drop
+        ['dragenter', 'dragover'].forEach(e => ui.dropZone.addEventListener(e, (ev) => { ev.preventDefault(); ui.dropZone.classList.add('drag-over'); }));
+        ['dragleave', 'drop'].forEach(e => ui.dropZone.addEventListener(e, (ev) => { ev.preventDefault(); ui.dropZone.classList.remove('drag-over'); }));
+        ui.dropZone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) { ui.fileInput.files = files; updateFileUI(files[0]); }
+        });
+        ui.fileInput.addEventListener('change', (e) => { if (e.target.files[0]) updateFileUI(e.target.files[0]); });
+        function updateFileUI(file) {
+            ui.fileNameDisplay.innerHTML = `<b>${file.name}</b> 선택됨 (변경 클릭)`;
+            log(`파일 준비 완료: ${file.name}`);
+
+            // Auto-trigger image extraction for PPTX
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (ext === 'pptx') {
+                extractImages(file);
+            } else {
+                ui.imageReviewSection.style.display = 'none';
+                selectedImages = {};
+            }
+        }
+
+        function resolveZipPath(basePath, relativePath) {
+            const stack = basePath.split("/");
+            stack.pop(); // Remove the filename/context (e.g., slide1.xml.rels or slide1.xml)
+            const parts = relativePath.split("/");
+            for (const part of parts) {
+                if (part === "..") stack.pop();
+                else if (part !== ".") stack.push(part);
+            }
+            return stack.join("/");
+        }
+
+        async function extractImages(file) {
+            try {
+                const zip = await JSZip.loadAsync(file);
+                const slides = Object.keys(zip.files).filter(n => n.startsWith("ppt/slides/slide") && n.endsWith(".xml"));
+                ui.imageReviewGrid.innerHTML = "";
+                selectedImages = {};
+
+                if (slides.length === 0) {
+                    ui.imageReviewSection.style.display = 'none';
+                    return;
+                }
+
+                ui.imageReviewSection.style.display = 'block';
+                log("이미지 추출 중...");
+
+                for (let i = 0; i < slides.length; i++) {
+                    const slidePath = slides[i];
+                    const slideNum = slidePath.match(/slide(\d+)\.xml/)[1];
+                    const relsPath = `ppt/slides/_rels/slide${slideNum}.xml.rels`;
+
+                    if (!zip.files[relsPath]) continue;
+
+                    const relsXml = await zip.file(relsPath).async("string");
+                    const relsDoc = new DOMParser().parseFromString(relsXml, "application/xml");
+                    const rels = Array.from(relsDoc.getElementsByTagName("Relationship"))
+                        .filter(r => r.getAttribute("Type").includes("image"));
+
+                    if (rels.length === 0) continue;
+
+                    const slideGroup = document.createElement('div');
+                    slideGroup.className = 'slide-group';
+                    slideGroup.innerHTML = `<div class="slide-title">Slide ${slideNum}</div>`;
+                    const grid = document.createElement('div');
+                    grid.className = 'image-grid';
+
+                    for (const rel of rels) {
+                        const rId = rel.getAttribute("Id");
+                        const targetRel = rel.getAttribute("Target");
+                        // Rels are relative to ppt/slides/_rels/ folder? No, they are relative to the XML they accompany.
+                        // slide1.xml is in ppt/slides/. So Target="../media/image.png" means ppt/media/image.png.
+                        const target = resolveZipPath(slidePath, targetRel);
+                        const imgFile = zip.file(target);
+
+                        if (!imgFile) {
+                            console.warn("Image file not found in zip:", target);
+                            continue;
+                        }
+
+                        const ext = target.split('.').pop().toLowerCase();
+                        const isUnsupported = ['emf', 'wmf', 'tiff', 'tif'].includes(ext);
+
+                        const blob = await imgFile.async("blob");
+                        const url = URL.createObjectURL(blob);
+
+                        const card = document.createElement('div');
+                        card.className = 'image-card';
+                        if (isUnsupported) card.style.background = "#1e293b";
+
+                        card.innerHTML = `
+                            <div class="checkbox-container">
+                                <input type="checkbox" data-slide="${slideNum}" data-rid="${rId}">
+                            </div>
+                            <img src="${isUnsupported ? '' : url}" alt="${isUnsupported ? 'No Preview (' + ext + ')' : 'Slide Image'}" 
+                                 onerror="this.style.display='none'; this.parentElement.innerHTML+='<div style=\'padding:40px; font-size:12px; color:#64748b; text-align:center;\'>Preview N/A (${ext})</div>'">
+                        `;
+
+                        // Whole card click toggles checkbox
+                        card.addEventListener('click', (e) => {
+                            if (e.target.tagName !== 'INPUT') {
+                                const cb = card.querySelector('input');
+                                cb.checked = !cb.checked;
+                                cb.dispatchEvent(new Event('change'));
+                            }
+                        });
+
+                        const cb = card.querySelector('input');
+                        cb.addEventListener('change', (e) => {
+                            if (!selectedImages[slideNum]) selectedImages[slideNum] = {};
+                            selectedImages[slideNum][rId] = e.target.checked;
+                            card.classList.toggle('selected', e.target.checked);
+                        });
+
+                        grid.appendChild(card);
+                    }
+                    slideGroup.appendChild(grid);
+                    ui.imageReviewGrid.appendChild(slideGroup);
+                }
+                log("이미지 추출 완료. 교체 대상으로 마킹할 이미지를 선택해주세요.");
+            } catch (e) {
+                console.error(e);
+                log(`이미지 추출 실패: ${e.message}`);
+            }
+        }
+
+        // Removed Modal Listeners
+
+        // API Key Handling
+        ui.apiKeyFile.addEventListener('change', (e) => {
+            const f = e.target.files[0]; if (!f) return;
+            const r = new FileReader();
+            r.onload = (ev) => { ui.apiKey.value = ev.target.result.trim(); log("API 키 파일 로드 완료."); };
+            r.readAsText(f);
+        });
+        async function tryAutoLoad() { try { const r = await fetch('API.txt'); if (r.ok) { ui.apiKey.value = (await r.text()).trim(); log("API.txt 자동 로드 성공."); } } catch (e) { } }
+        tryAutoLoad();
+
+        function log(msg, replace = false) {
+            if (replace) ui.status.innerHTML = `<div>${msg}</div>`;
+            else ui.status.innerHTML += `<div>> ${msg}</div>`;
+            ui.status.scrollTop = ui.status.scrollHeight;
+        }
+        function setProgress(p) { ui.progressBar.style.width = p + '%'; }
+
+        // Unified Translation & Styling Logic
+        async function getModels(key) {
+            try {
+                const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+                if (!r.ok) return ['gemini-2.0-flash', 'gemini-1.5-flash'];
+                const data = await r.json();
+                const valid = data.models.filter(m => m.supportedGenerationMethods.includes('generateContent') && !m.name.includes('-exp')).map(m => m.name.replace('models/', ''));
+                const prio = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-pro'];
+                const res = prio.filter(p => valid.some(v => v.includes(p)));
+                return res.length > 0 ? res : ['gemini-1.5-flash'];
+            } catch (e) { return ['gemini-1.5-flash']; }
+        }
+
+        async function translateBatch(texts, keysRaw) {
+            const keys = keysRaw.split(/[\n,]/).map(k => k.trim()).filter(k => k !== "");
+            if (!keys.length) throw new Error("API Key가 없습니다.");
+            const isKoJa = ui.direction.value === 'ko-ja';
+            const prompt = `Translate ${texts.length} texts from ${isKoJa ? 'Korean to Japanese' : 'Japanese to Korean'}. Return JSON array of strings ONLY. No preamble. \nTexts: ${JSON.stringify(texts)}`;
+
+            for (const key of keys) {
+                const models = await getModels(key);
+                for (const model of models) {
+                    try {
+                        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.1, responseMimeType: "application/json" } })
+                        });
+                        if (!r.ok) continue;
+                        const res = await r.json();
+                        return JSON.parse(res.candidates[0].content.parts[0].text.replace(/^```json\s*|\s*```$/gi, ""));
+                    } catch (e) { continue; }
+                }
+            }
+            throw new Error("모든 API 시도가 실패했습니다.");
+        }
+
+        function applyMeiryo(p, conf) {
+            let prs = Array.from(p.getElementsByTagNameNS(conf.ns, conf.rPrTag));
+            if (conf.isWord) {
+                Array.from(p.getElementsByTagNameNS(conf.ns, "pPr")).forEach(pp => {
+                    let rpr = pp.getElementsByTagNameNS(conf.ns, "rPr")[0];
+                    if (rpr && !prs.includes(rpr)) prs.push(rpr);
+                });
+            }
+            prs.forEach(pr => {
+                if (conf.isWord) {
+                    let f = pr.getElementsByTagNameNS(conf.ns, "rFonts")[0];
+                    if (!f) { f = pr.ownerDocument.createElementNS(conf.ns, "w:rFonts"); pr.prepend(f); }
+                    f.setAttribute("w:ascii", "Meiryo"); f.setAttribute("w:hAnsi", "Meiryo"); f.setAttribute("w:eastAsia", "Meiryo"); f.setAttribute("w:cs", "Meiryo"); f.setAttribute("w:hint", "eastAsia");
+                } else {
+                    ["latin", "ea", "cs"].forEach(t => {
+                        let n = pr.getElementsByTagNameNS(conf.ns, t)[0];
+                        if (!n) { n = pr.ownerDocument.createElementNS(conf.ns, "a:" + t); pr.appendChild(n); }
+                        n.setAttribute("typeface", "Meiryo");
+                    });
+                }
+            });
+        }
+
+        async function processXml(zip, fileName, keys, type, isStyleOnly) {
+            const conf = CONFIG[type];
+            const xml = await zip.file(fileName).async("string");
+            const doc = new DOMParser().parseFromString(xml, "application/xml");
+            const paragraphs = Array.from(doc.getElementsByTagNameNS(conf.ns, conf.pTag));
+
+            // Image Decoration Logic for PPTX
+            if (type === 'pptx' && !isStyleOnly) {
+                const slideNum = fileName.match(/slide(\d+)\.xml/)?.[1];
+                if (slideNum && selectedImages[slideNum]) {
+                    const pics = Array.from(doc.getElementsByTagName("p:pic"));
+                    pics.forEach(pic => {
+                        const blip = pic.getElementsByTagName("a:blip")[0];
+                        if (blip) {
+                            const rId = blip.getAttribute("r:embed");
+                            if (selectedImages[slideNum][rId]) {
+                                // Add Glow Decoration
+                                let spPr = pic.getElementsByTagName("p:spPr")[0];
+                                if (spPr) {
+                                    let effectLst = spPr.getElementsByTagName("a:effectLst")[0];
+                                    if (!effectLst) {
+                                        effectLst = doc.createElementNS("http://schemas.openxmlformats.org/drawingml/2006/main", "a:effectLst");
+                                        spPr.appendChild(effectLst);
+                                    }
+
+                                    // Remove existing glow if any
+                                    Array.from(effectLst.getElementsByTagName("a:glow")).forEach(g => g.remove());
+
+                                    const glow = doc.createElementNS("http://schemas.openxmlformats.org/drawingml/2006/main", "a:glow");
+                                    glow.setAttribute("rad", "280000"); // Increased radius (thicker glow)
+                                    const srgbClr = doc.createElementNS("http://schemas.openxmlformats.org/drawingml/2006/main", "a:srgbClr");
+                                    srgbClr.setAttribute("val", "FF0000"); // Red color
+                                    const alpha = doc.createElementNS("http://schemas.openxmlformats.org/drawingml/2006/main", "a:alpha");
+                                    alpha.setAttribute("val", "75000"); // Increased opacity (75%)
+                                    srgbClr.appendChild(alpha);
+                                    glow.appendChild(srgbClr);
+                                    effectLst.appendChild(glow);
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
+            if (isStyleOnly) {
+                paragraphs.forEach(p => applyMeiryo(p, conf));
+            } else {
+                const batch = []; const targets = [];
+                paragraphs.forEach(p => {
+                    const ts = Array.from(p.getElementsByTagNameNS(conf.ns, "t"));
+                    if (!ts.length) return;
+                    const fullText = ts.map(t => t.textContent).join("");
+                    if (!fullText.trim() || /^[\d\s,.\-%]+$/.test(fullText.trim()) || /^(https?:\/\/|www\.)/i.test(fullText.trim())) return;
+                    batch.push(fullText); targets.push({ p, ts });
+                });
+                if (batch.length > 0) {
+                    const size = 15;
+                    for (let i = 0; i < batch.length; i += size) {
+                        try {
+                            const results = await translateBatch(batch.slice(i, i + size), keys);
+                            results.forEach((translated, j) => {
+                                const t = targets[i + j];
+                                if (t) {
+                                    t.ts[0].textContent = translated;
+                                    for (let k = 1; k < t.ts.length; k++) t.ts[k].textContent = "";
+                                    if (ui.direction.value === 'ko-ja') applyMeiryo(t.p, conf);
+                                }
+                            });
+                        } catch (e) { log(`[Warn] 배번 번역 실패: ${fileName}`); }
+                    }
+                }
+            }
+            zip.file(fileName, new XMLSerializer().serializeToString(doc));
+        }
+
+        ui.mainBtn.addEventListener('click', async () => {
+            const file = ui.fileInput.files[0];
+            const keys = ui.apiKey.value.trim();
+            if (!file) return alert("파일을 선택해주세요.");
+            if (currentMode === 'ai' && !keys) return alert("AI 번역을 위해 API 키가 필요합니다.");
+
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!CONFIG[ext]) return alert("지원하지 않는 확장자입니다.");
+
+            ui.mainBtn.disabled = true;
+            log("작업 시작...", true);
+            setProgress(5);
+
+            try {
+                const zip = await JSZip.loadAsync(file);
+                const targets = CONFIG[ext].getFiles(zip);
+                for (let i = 0; i < targets.length; i++) {
+                    log(`${i + 1}/${targets.length} 처리 중...`);
+                    await processXml(zip, targets[i], keys, ext, currentMode === 'style');
+                    setProgress(10 + ((i + 1) / targets.length) * 80);
+                }
+                log("최종 결과물 생성 및 압축 중...");
+                const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 9 } });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `${currentMode === 'ai' ? 'translated' : 'styled'}_${file.name}`; a.click();
+                log(`완료! 크기: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
+                setProgress(100);
+            } catch (e) { log(`에러: ${e.message}`); } finally { ui.mainBtn.disabled = false; }
+        });
+    </script>
+</body>
+
+</html>

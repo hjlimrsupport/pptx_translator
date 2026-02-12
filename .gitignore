@@ -1,0 +1,19 @@
+# API Keys and Secrets
+API.txt
+HFAPI.txt
+*.txt
+*.key
+.env
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Large Sample Files (Optional - if you don't want to push large PPTX)
+# *.pptx
+# *.docx
+
+# Python temporary files
+__pycache__/
+*.py[cod]
+*$py.class
