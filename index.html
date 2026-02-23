@@ -510,7 +510,12 @@
 
         const CONFIG = {
             pptx: {
-                getFiles: (zip) => Object.keys(zip.files).filter(n => n.startsWith("ppt/slides/slide") && n.endsWith(".xml")),
+                getFiles: (zip) => Object.keys(zip.files).filter(n =>
+                    (n.startsWith("ppt/slides/slide") ||
+                        n.startsWith("ppt/slideMasters/slideMaster") ||
+                        n.startsWith("ppt/slideLayouts/slideLayout") ||
+                        n.startsWith("ppt/notesSlides/notesSlide")) && n.endsWith(".xml")
+                ),
                 ns: "http://schemas.openxmlformats.org/drawingml/2006/main",
                 pTag: "p", tTag: "t", rPrTag: "rPr",
                 fontTags: ["latin", "ea", "cs"], isWord: false
@@ -627,29 +632,63 @@
             } catch (e) { return ['gemini-1.5-flash']; }
         }
 
-        async function translateBatch(texts, keysRaw) {
+        async function translateBatch(texts, keysRaw, retryCount = 0) {
             const isKoJa = ui.direction.value === 'ko-ja';
             const prompt = isKoJa ?
-                `You are a professional Japanese B2B translator. Return ONLY a JSON array of strings. Length: ${texts.length}. No markdown. Input: ${JSON.stringify(texts)}` :
-                `You are a professional Korean B2B translator. Return ONLY a JSON array of strings. Length: ${texts.length}. No markdown. Input: ${JSON.stringify(texts)}`;
+                `You are a professional Japanese B2B localizer. 
+                Task: Translate the following Korean UI/Business strings into Japanese.
+                Rules:
+                1. Return ONLY a valid JSON array of strings.
+                2. Maintain the exact same array length: ${texts.length}.
+                3. Use formal/business Japanese (Desu/Masu or specialized UI terms).
+                4. Do not add any explanations.
+                Input: ${JSON.stringify(texts)}` :
+                `You are a professional Korean B2B localizer. 
+                Task: Translate the following Japanese UI/Business strings into Korean.
+                Rules:
+                1. Return ONLY a valid JSON array of strings.
+                2. Maintain the exact same array length: ${texts.length}.
+                3. Use formal/business Korean.
+                4. Do not add any explanations.
+                Input: ${JSON.stringify(texts)}`;
+
             const keys = keysRaw.split(/[\n,]/).map(k => k.trim()).filter(k => k !== "");
             if (!keys.length) throw new Error("API Key Missing");
+
             for (const key of keys) {
                 const models = await getModels(key);
                 for (const model of models) {
                     try {
                         const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.1, responseMimeType: "application/json" } })
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: prompt }] }],
+                                generationConfig: { temperature: 0.1, responseMimeType: "application/json" },
+                                safetySettings: [
+                                    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+                                ]
+                            })
                         });
                         if (!r.ok) continue;
                         const res = await r.json();
+                        if (!res.candidates || !res.candidates[0].content) continue;
                         let text = res.candidates[0].content.parts[0].text.replace(/^```json\s*|\s*```$/gi, "");
-                        return JSON.parse(text);
+                        const parsed = JSON.parse(text);
+                        if (Array.isArray(parsed) && parsed.length === texts.length) return parsed;
+                        else continue;
                     } catch (e) { continue; }
                 }
             }
-            throw new Error("All Gemini API attempts failed.");
+
+            if (retryCount < 2) {
+                log(`[Retry] Batch failed, retrying... (${retryCount + 1}/2)`);
+                await new Promise(r => setTimeout(r, 2000));
+                return await translateBatch(texts, keysRaw, retryCount + 1);
+            }
+            throw new Error("All Gemini API attempts and retries failed.");
         }
 
         function applyMeiryo(p, conf) {
