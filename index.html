@@ -635,22 +635,68 @@
         async function translateBatch(texts, keysRaw, retryCount = 0) {
             const isKoJa = ui.direction.value === 'ko-ja';
             const prompt = isKoJa ?
-                `You are a professional Japanese B2B localizer. 
-                Task: Translate the following Korean UI/Business strings into Japanese.
-                Rules:
-                1. Return ONLY a valid JSON array of strings.
-                2. Maintain the exact same array length: ${texts.length}.
-                3. Use formal/business Japanese (Desu/Masu or specialized UI terms).
-                4. Do not add any explanations.
-                Input: ${JSON.stringify(texts)}` :
-                `You are a professional Korean B2B localizer. 
-                Task: Translate the following Japanese UI/Business strings into Korean.
-                Rules:
-                1. Return ONLY a valid JSON array of strings.
-                2. Maintain the exact same array length: ${texts.length}.
-                3. Use formal/business Korean.
-                4. Do not add any explanations.
-                Input: ${JSON.stringify(texts)}`;
+                `You are a senior Japanese B2B proposal slide localizer.
+
+Task:
+Translate the following Korean business proposal slide strings into persuasive, presentation-ready Japanese suitable for a corporate solution proposal.
+
+Context:
+This is NOT UI text or a manual.
+This content is for slide-based sales/proposal materials targeting decision-makers.
+
+Rules:
+1. Maintain the exact same array length: ${texts.length}.
+2. Return ONLY a valid JSON array of strings.
+3. Use concise, slide-optimized Japanese.
+4. Prioritize clarity, impact, and business value.
+5. Prefer noun-ending structures (体言止め) where appropriate.
+6. Avoid UI-style phrasing such as:
+   - 「〜することが可能です」
+   - 「〜することができます」
+7. Avoid unnecessary polite Desu/Masu forms unless grammatically required.
+8. Do not exaggerate (avoid words like 爆増, 完璧).
+9. Preserve headings, bullet rhythm, and logical structure.
+10. Keep product names and technical brand terms in English.
+11. Remove any internal comments or irrelevant notes.
+
+Translation Style Guidelines:
+- Make the text feel like a Japanese executive presentation slide.
+- Reduce verbosity.
+- Convert explanatory sentences into impact-driven phrases where possible.
+- Emphasize differentiation, efficiency, value, and outcomes.
+
+Input: ${JSON.stringify(texts)}` :
+                `You are a senior Korean B2B proposal slide localizer.
+
+Task:
+Translate the following Japanese business proposal slide strings into persuasive, presentation-ready Korean suitable for a corporate solution proposal.
+
+Context:
+This is NOT UI text or a manual.
+This content is for slide-based sales/proposal materials targeting decision-makers.
+
+Rules:
+1. Maintain the exact same array length: ${texts.length}.
+2. Return ONLY a valid JSON array of strings.
+3. Use concise, slide-optimized Korean.
+4. Prioritize clarity, impact, and business value.
+5. Prefer noun-ending structures (체언종결) where appropriate.
+6. Avoid verbose or UI-style phrasing such as:
+   - 「～하는 것이 가능합니다」
+   - 「～을/를 제공합니다」(when a more impactful phrase is available)
+7. Avoid unnecessary sentence-final endings unless grammatically required.
+8. Do not exaggerate (avoid words like 폭발적, 완벽한).
+9. Preserve headings, bullet rhythm, and logical structure.
+10. Keep product names and technical brand terms in English.
+11. Remove any internal comments or irrelevant notes.
+
+Translation Style Guidelines:
+- Make the text feel like a Korean executive presentation slide.
+- Reduce verbosity.
+- Convert explanatory sentences into impact-driven phrases where possible.
+- Emphasize differentiation, efficiency, value, and outcomes.
+
+Input: ${JSON.stringify(texts)}`;
 
             const keys = keysRaw.split(/[\n,]/).map(k => k.trim()).filter(k => k !== "");
             if (!keys.length) throw new Error("API Key Missing");
