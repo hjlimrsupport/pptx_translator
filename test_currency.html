@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Currency Translation Test</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        input, button { width: 100%; padding: 12px; margin: 8px 0; font-size: 1rem; border-radius: 8px; border: 1px solid #ccc; }
+        button { background: #4f46e5; color: white; border: none; cursor: pointer; }
+        button:hover { background: #6366f1; }
+        .result { margin-top: 20px; padding: 15px; background: #f1f5f9; border-radius: 8px; white-space: pre-wrap; font-family: monospace; }
+        .label { font-weight: bold; color: #64748b; font-size: 0.85rem; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
+        th { background: #f8fafc; }
+        .ok { color: #16a34a; font-weight: bold; }
+        .fail { color: #dc2626; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>💱 통화 단위 번역 테스트</h2>
+    <p>백만원 → 百万ウォン 으로 번역되는지 확인합니다.</p>
+
+    <div class="label">Gemini API Key</div>
+    <input type="password" id="apiKey" placeholder="API 키를 입력하세요">
+
+    <button onclick="runTest()">테스트 실행</button>
+
+    <div id="output"></div>
+
+    <script>
+        const TEST_CASES = [
+            "(단위: 백만원)",
+            "매출 1,200억원",
+            "비용 3,500만원",
+            "투자금 5조원",
+            "원가 절감 10%"
+        ];
+
+        const EXPECTED_PATTERNS = [
+            /百万ウォン/,
+            /億ウォン/,
+            /万ウォン/,
+            /兆ウォン/,
+            /ウォン/
+        ];
+
+        async function getModels(key) {
+            try {
+                const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+                if (!r.ok) return ['gemini-3.1-flash-lite', 'gemini-2.5-flash-lite'];
+                const data = await r.json();
+                const valid = data.models
+                    .filter(m => m.supportedGenerationMethods.includes('generateContent') && !m.name.includes('-exp'))
+                    .map(m => m.name.replace('models/', ''));
+                const prio = ['gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+                const res = prio.filter(p => valid.some(v => v.includes(p)));
+                return res.length > 0 ? res : ['gemini-2.5-flash-lite'];
+            } catch (e) { return ['gemini-2.5-flash-lite']; }
+        }
+
+        async function translateBatch(texts, key) {
+            const prompt = `You are a senior Japanese B2B proposal slide localizer.
+
+Task:
+Translate the following Korean business proposal slide strings into persuasive, presentation-ready Japanese suitable for a corporate solution proposal.
+
+Context:
+This is NOT UI text or a manual.
+This content is for slide-based sales/proposal materials targeting decision-makers.
+
+Rules:
+1. Maintain the exact same array length: ${texts.length}.
+2. Return ONLY a valid JSON array of strings.
+3. Use concise, slide-optimized Japanese.
+4. Prioritize clarity, impact, and business value.
+5. Prefer noun-ending structures (体言止め) where appropriate.
+6. Avoid UI-style phrasing such as:
+   - 「〜することが可能です」
+   - 「〜することができます」
+7. Avoid unnecessary polite Desu/Masu forms unless grammatically required.
+8. Do not exaggerate (avoid words like 爆増, 完璧).
+9. Preserve headings, bullet rhythm, and logical structure.
+10. Keep product names and technical brand terms in English.
+11. Korean currency units (원, 백만원, 억원, 조원) must be translated into Japanese using katakana 'ウォン'. Examples: 원→ウォン, 백만원→百万ウォン, 억원→億ウォン, 조원→兆ウォン. Never convert to Japanese yen (円).
+12. Remove any internal comments or irrelevant notes.
+
+Translation Style Guidelines:
+- Make the text feel like a Japanese executive presentation slide.
+- Reduce verbosity.
+- Convert explanatory sentences into impact-driven phrases where possible.
+- Emphasize differentiation, efficiency, value, and outcomes.
+
+Input: ${JSON.stringify(texts)}`;
+
+            const models = await getModels(key);
+            for (const model of models) {
+                try {
+                    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }],
+                            generationConfig: { temperature: 0.1, responseMimeType: "application/json" },
+                            safetySettings: [
+                                { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                                { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                                { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+                            ]
+                        })
+                    });
+                    if (!r.ok) continue;
+                    const res = await r.json();
+                    if (!res.candidates || !res.candidates[0].content) continue;
+                    let text = res.candidates[0].content.parts[0].text.replace(/^\`\`\`json\s*|\s*\`\`\`$/gi, "");
+                    const parsed = JSON.parse(text);
+                    if (Array.isArray(parsed) && parsed.length === texts.length) return { ok: true, results: parsed, model };
+                } catch (e) { continue; }
+            }
+            return { ok: false, error: "All models failed" };
+        }
+
+        async function runTest() {
+            const key = document.getElementById('apiKey').value.trim();
+            const out = document.getElementById('output');
+            if (!key) { out.innerHTML = '<div class="fail">API 키를 입력하세요</div>'; return; }
+
+            out.innerHTML = '<div>테스트 중... (최대 10초)</div>';
+
+            const res = await translateBatch(TEST_CASES, key);
+            if (!res.ok) { out.innerHTML = `<div class="fail">API 호출 실패: ${res.error}</div>`; return; }
+
+            let html = `<div class="label">사용 모델: ${res.model}</div>`;
+            html += '<table><tr><th>원문</th><th>번역 결과</th><th>검증</th></tr>';
+
+            for (let i = 0; i < TEST_CASES.length; i++) {
+                const original = TEST_CASES[i];
+                const translated = res.results[i];
+                const hasWon = /ウォン/.test(translated);
+                const hasYen = /円/.test(translated);
+                const isOk = hasWon && !hasYen;
+                const status = isOk ? '<span class="ok">✓ PASS</span>' : '<span class="fail">✗ FAIL</span>';
+                html += `<tr><td>${original}</td><td>${translated}</td><td>${status}</td></tr>`;
+            }
+            html += '</table>';
+
+            const allPass = res.results.every((t, i) => /ウォン/.test(t) && !/円/.test(t));
+            html += allPass
+                ? '<div class="ok" style="margin-top:15px; font-size:1.1rem;">🎉 모든 테스트 통과! 백만원 → 百万ウォン 정상 작동</div>'
+                : '<div class="fail" style="margin-top:15px; font-size:1.1rem;">⚠️ 일부 테스트 실패. 프롬프트를 더 강화해야 할 수 있습니다.</div>';
+
+            out.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

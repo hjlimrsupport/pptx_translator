@@ -626,7 +626,7 @@
                 if (!r.ok) return ['gemini-2.0-flash', 'gemini-1.5-flash'];
                 const data = await r.json();
                 const valid = data.models.filter(m => m.supportedGenerationMethods.includes('generateContent') && !m.name.includes('-exp')).map(m => m.name.replace('models/', ''));
-                const prio = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-pro'];
+                const prio = ['gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
                 const res = prio.filter(p => valid.some(v => v.includes(p)));
                 return res.length > 0 ? res : ['gemini-1.5-flash'];
             } catch (e) { return ['gemini-1.5-flash']; }
@@ -657,7 +657,8 @@ Rules:
 8. Do not exaggerate (avoid words like 爆増, 完璧).
 9. Preserve headings, bullet rhythm, and logical structure.
 10. Keep product names and technical brand terms in English.
-11. Remove any internal comments or irrelevant notes.
+11. Korean currency units (원, 백만원, 억원, 조원) must be translated into Japanese using katakana 'ウォン'. Examples: 원→ウォン, 백만원→百万ウォン, 억원→億ウォン, 조원→兆ウォン. Never convert to Japanese yen (円).
+12. Remove any internal comments or irrelevant notes.
 
 Translation Style Guidelines:
 - Make the text feel like a Japanese executive presentation slide.
@@ -688,7 +689,8 @@ Rules:
 8. Do not exaggerate (avoid words like 폭발적, 완벽한).
 9. Preserve headings, bullet rhythm, and logical structure.
 10. Keep product names and technical brand terms in English.
-11. Remove any internal comments or irrelevant notes.
+11. Preserve Japanese currency units exactly as-is. Do NOT convert '円', '百万円', '億円', '兆円' to Korean won (원, 백만원, 억원, 조원). Financial data units must remain in their original currency.
+12. Remove any internal comments or irrelevant notes.
 
 Translation Style Guidelines:
 - Make the text feel like a Korean executive presentation slide.

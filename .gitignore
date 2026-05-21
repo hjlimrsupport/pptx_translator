@@ -9,9 +9,14 @@ HFAPI.txt
 .DS_Store
 Thumbs.db
 
-# Large Sample Files (Optional - if you don't want to push large PPTX)
-# *.pptx
-# *.docx
+# Large Sample Files
+*.pptx
+*.docx
+*.pdf
+
+# Redundant Files
+font_styler.html
+*도구*.html
 
 # Python temporary files
 __pycache__/
