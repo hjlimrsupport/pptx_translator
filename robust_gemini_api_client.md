@@ -54,10 +54,10 @@ def get_working_models(api_key):
     # - Prefer flash models for speed and cost efficiency
     # - Fall back to pro models for maximum stability
     priorities = [
-        'gemini-3.1-flash-lite',
-        'gemini-3.5-flash',
-        'gemini-2.5-flash',
-        'gemini-2.5-flash-lite'
+        'gemini-3.7-flash',
+        'gemini-3.6-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-3.1-flash-lite'
     ]
 
     try:
@@ -81,13 +81,13 @@ def get_working_models(api_key):
 
         # Safe fallback if filtering yields no results
         if not sorted_models:
-            return ['gemini-2.5-flash-lite']
+            return ['gemini-3.7-flash']
 
         return sorted_models
 
     except Exception:
         # Network, auth, or API-level failure fallback
-        return ['gemini-2.5-flash-lite']
+        return ['gemini-3.7-flash', 'gemini-3.6-flash']
 
 
 def generate_with_fallback(prompt, api_key):

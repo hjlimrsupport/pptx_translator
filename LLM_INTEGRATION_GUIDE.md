@@ -28,10 +28,10 @@ Query the API for currently supported models instead of trusting constants.
 ```javascript
 async function getWorkingModels(apiKey) {
     const priorities = [
-        'gemini-3.5-flash',
-        'gemini-3.1-flash-lite',
-        'gemini-2.5-flash',
-        'gemini-2.5-flash-lite'
+        'gemini-3.7-flash',
+        'gemini-3.6-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-3.1-flash-lite'
     ];
 
     try {
@@ -53,9 +53,9 @@ async function getWorkingModels(apiKey) {
             stable.some(s => s.toLowerCase().includes(p.toLowerCase()))
         );
 
-        return ordered.length ? ordered : ['gemini-2.5-flash-lite'];
+        return ordered.length ? ordered : ['gemini-3.7-flash'];
     } catch (e) {
-        return ['gemini-2.5-flash-lite'];
+        return ['gemini-3.7-flash', 'gemini-3.6-flash'];
     }
 }
 ```
@@ -67,10 +67,10 @@ import google.generativeai as genai
 
 def get_working_models(api_key):
     priorities = [
-        'gemini-3.5-flash',
-        'gemini-3.1-flash-lite',
-        'gemini-2.5-flash',
-        'gemini-2.5-flash-lite'
+        'gemini-3.7-flash',
+        'gemini-3.6-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-3.1-flash-lite'
     ]
 
     genai.configure(api_key=api_key)
@@ -88,9 +88,9 @@ def get_working_models(api_key):
             for m in stable
             if p in m.lower()
         ]
-        return ordered if ordered else ['gemini-2.5-flash-lite']
+        return ordered if ordered else ['gemini-3.7-flash']
     except Exception:
-        return ['gemini-2.5-flash-lite']
+        return ['gemini-3.7-flash', 'gemini-3.6-flash']
 ```
 
 ### 2.2 Step 2 — Generate with Fallback
@@ -205,20 +205,25 @@ def generate_with_fallback(prompt, api_key):
 
 ---
 
-## 5. Model Priority Reference (as of 2026-05)
+## 5. Model Priority Reference (as of 2026-08)
 
 Update this list periodically as new models release.
 
 ```javascript
 const MODEL_PRIORITY = [
-    'gemini-3.5-flash',       // Frontier intelligence + speed
-    'gemini-3.1-flash-lite',  // Fastest, cheapest, translation-optimized
-    'gemini-2.5-flash',       // Reliable, proven
-    'gemini-2.5-flash-lite'   // Minimum fallback
+    'gemini-3.7-flash',       // Best quality; verified accurate on currency rules (원→ウォン)
+    'gemini-3.6-flash',       // Same pricing tier as 3.7, near-equal quality
+    'gemini-3.5-flash-lite',  // High free-tier quota fallback (weaker on currency without prompt rules)
+    'gemini-3.1-flash-lite'   // Cheapest last-resort fallback
 ];
 ```
 
+**Note:** 3.7/3.6 are thinking models. Keep dynamic thinking on the primary path —
+disabling it (`thinkingLevel: "low"`) was measured to break currency accuracy
+(백만원 → 数百万円). Reserve reduced thinking for last-retry fallback only.
+
 **Deprecated (do NOT use):**
+- `gemini-2.5-flash` / `gemini-2.5-flash-lite` — superseded by 3.x (3.7/3.6 are cheaper AND better)
 - `gemini-2.0-flash` — shut down June 1, 2026
 - `gemini-2.0-flash-lite` — shut down June 1, 2026
 - `gemini-1.5-flash` — legacy

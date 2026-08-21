@@ -39,7 +39,7 @@ This pattern is currently used in the **Office AI Suite** to handle document tra
 async function getModels(key) {
     try {
         const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
-        if (!r.ok) return ['gemini-3.1-flash-lite', 'gemini-2.5-flash-lite'];
+        if (!r.ok) return ['gemini-3.7-flash', 'gemini-3.6-flash'];
         const data = await r.json();
         
         // Filter: Must support 'generateContent' and NOT be an experimental (-exp) model
@@ -47,13 +47,13 @@ async function getModels(key) {
             .filter(m => m.supportedGenerationMethods.includes('generateContent') && !m.name.includes('-exp'))
             .map(m => m.name.replace('models/', ''));
 
-        // Priority Order preference
-        const prio = ['gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+        // Priority Order preference: quality first (3.7/3.6), then high-quota Lite fallbacks
+        const prio = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
         const res = prio.filter(p => valid.some(v => v.includes(p)));
         
-        return res.length > 0 ? res : ['gemini-1.5-flash'];
+        return res.length > 0 ? res : ['gemini-3.7-flash'];
     } catch (e) { 
-        return ['gemini-2.5-flash-lite']; 
+        return ['gemini-3.7-flash', 'gemini-3.6-flash']; 
     }
 }
 
